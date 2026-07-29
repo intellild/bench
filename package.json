@@ -1,0 +1,16 @@
+{
+  "name": "loader-cache-storage-bench",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "generate": "node generate-fixtures.mjs",
+    "bench:json": "RSPACK_REPO=./rspack-json RSPACK_LOADER_CACHE_BENCH_LABEL=json node bench-loader-cache.mjs > json-result.json",
+    "bench:storage": "RSPACK_REPO=./rspack-storage RSPACK_LOADER_CACHE_BENCH_LABEL=rspack-storage node bench-loader-cache.mjs > storage-result.json",
+    "compare": "node compare-loader-cache-results.mjs json-result.json storage-result.json"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "babel-loader": "^10.1.1"
+  }
+}

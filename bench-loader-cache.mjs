@@ -4,10 +4,13 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const babelLoaderPath = require.resolve('babel-loader');
 const repoRootValue = process.env.RSPACK_REPO;
 if (!repoRootValue) {
   throw new Error('RSPACK_REPO must point to an Rspack checkout');
@@ -108,7 +111,10 @@ async function runBuild() {
       [cliPath, '--config', path.join(benchRoot, 'rspack.config.cjs')],
       {
         cwd: benchRoot,
-        env: process.env,
+        env: {
+          ...process.env,
+          RSPACK_LOADER_CACHE_BENCH_BABEL_LOADER: babelLoaderPath,
+        },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );

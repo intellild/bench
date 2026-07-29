@@ -30,10 +30,10 @@ Compare JSON and rspack_storage results
 
 Two fixture scenarios are committed:
 
-- `backend-only`: a nearly no-op loader workload that exposes storage
-  read/write overhead.
-- `slow-loader`: a deliberately expensive SWC workload that measures complete
-  cold and warm compilation performance.
+- `backend-only`: a local identity JS loader that exposes storage read/write
+  overhead.
+- `slow-loader`: `babel-loader` processing generated JavaScript to measure
+  complete cold and warm compilation performance.
 
 ## Clone and prepare
 
@@ -48,6 +48,13 @@ For an existing clone:
 
 ```sh
 git submodule update --init --recursive
+```
+
+Install the benchmark's npm dependencies:
+
+```sh
+cd <benchmark-dir>
+pnpm install --frozen-lockfile
 ```
 
 Install dependencies and build both Rspack development CLIs:
@@ -71,17 +78,9 @@ JSON results are written to stdout; a short summary is written to stderr.
 ```sh
 cd <benchmark-dir>
 
-RSPACK_REPO=./rspack-json \
-RSPACK_LOADER_CACHE_BENCH_LABEL=json \
-node bench-loader-cache.mjs > json-result.json
-
-RSPACK_REPO=./rspack-storage \
-RSPACK_LOADER_CACHE_BENCH_LABEL=rspack-storage \
-node bench-loader-cache.mjs > storage-result.json
-
-node compare-loader-cache-results.mjs \
-  json-result.json \
-  storage-result.json
+pnpm bench:json
+pnpm bench:storage
+pnpm compare
 ```
 
 The generated runtime directory defaults to
@@ -94,7 +93,7 @@ The fixture generator defaults to 1,000 modules and 200 generated statements
 per module in the slow-loader scenario:
 
 ```sh
-node generate-fixtures.mjs
+pnpm generate
 ```
 
 To change their size:
@@ -102,7 +101,7 @@ To change their size:
 ```sh
 RSPACK_LOADER_CACHE_BENCH_MODULES=2000 \
 RSPACK_LOADER_CACHE_BENCH_COMPLEXITY=400 \
-node generate-fixtures.mjs
+pnpm generate
 ```
 
 Commit `fixtures/manifest.json` and both generated fixture directories together
@@ -121,10 +120,8 @@ manual edits.
 For a quick smoke measurement, reduce the iteration count:
 
 ```sh
-RSPACK_REPO=./rspack-json \
-RSPACK_LOADER_CACHE_BENCH_LABEL=json-smoke \
 RSPACK_LOADER_CACHE_BENCH_ITERATIONS=2 \
-node bench-loader-cache.mjs
+pnpm bench:json
 ```
 
 For stable comparisons, close other CPU- or disk-heavy processes, use the same
