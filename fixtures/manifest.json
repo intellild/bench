@@ -1,0 +1,13 @@
+{
+  "moduleCount": 1000,
+  "scenarios": [
+    {
+      "name": "backend-only",
+      "complexity": 1
+    },
+    {
+      "name": "slow-loader",
+      "complexity": 200
+    }
+  ]
+}
