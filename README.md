@@ -73,11 +73,26 @@ Storage/native-watcher tests are not required to run this benchmark.
 
 ## Run the comparison
 
-JSON results are written to stdout; a short summary is written to stderr.
+Run both implementations and write a dated Markdown report:
 
 ```sh
 cd <benchmark-dir>
 
+pnpm benchmark
+```
+
+The command writes `result-YYYY-MM-DD.md` with:
+
+- environment and pinned submodule commits;
+- median comparison and `rspack_storage` percentage delta;
+- min, median, mean, and max timings;
+- cold-to-warm speedup;
+- cache file count and size;
+- raw JSON results.
+
+To run or compare implementations manually:
+
+```sh
 pnpm bench:json
 pnpm bench:storage
 pnpm compare
@@ -117,11 +132,12 @@ manual edits.
 | `RSPACK_LOADER_CACHE_BENCH_DIR` | OS temp directory | Runtime fixture, cache, and output directory |
 | `RSPACK_LOADER_CACHE_BENCH_ITERATIONS` | `5` | Cold/warm measurement pairs |
 
-For a quick smoke measurement, reduce the iteration count:
+The zx runner forwards these variables to both implementations. For a quick
+dated smoke report, reduce the iteration count:
 
 ```sh
 RSPACK_LOADER_CACHE_BENCH_ITERATIONS=2 \
-pnpm bench:json
+pnpm benchmark
 ```
 
 For stable comparisons, close other CPU- or disk-heavy processes, use the same
