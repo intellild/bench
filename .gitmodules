@@ -6,3 +6,7 @@
 	path = rspack-storage
 	url = git@github.com:intellild/rspack.git
 	branch = codex/loader-cache-rspack-storage
+[submodule "rspack-rkyv"]
+	path = rspack-rkyv
+	url = git@github.com:intellild/rspack.git
+	branch = codex/loader-cache-rkyv

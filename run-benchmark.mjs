@@ -3,11 +3,14 @@
 import os from 'node:os';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
-import { $, chalk } from 'zx';
+import { chalk } from 'zx';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const execFileAsync = promisify(execFile);
 const benchmarkScript = path.join(projectRoot, 'bench-loader-cache.mjs');
 const manifest = JSON.parse(
   await fs.readFile(path.join(projectRoot, 'fixtures/manifest.json'), 'utf8'),
@@ -20,6 +23,11 @@ const implementations = [
     repo: path.join(projectRoot, 'rspack-json'),
   },
   {
+    label: 'rkyv',
+    title: 'rkyv',
+    repo: path.join(projectRoot, 'rspack-rkyv'),
+  },
+  {
     label: 'rspack-storage',
     title: 'rspack_storage',
     repo: path.join(projectRoot, 'rspack-storage'),
@@ -29,8 +37,8 @@ const implementations = [
 if (process.argv.includes('--help')) {
   console.log(`Usage: pnpm benchmark
 
-Runs the JSON and rspack_storage benchmarks sequentially and writes
-result-YYYY-MM-DD.md in the benchmark repository.
+Runs the JSON, rkyv, and rspack_storage benchmarks sequentially and writes
+result-YYYY-MM-DD-HH-mm-ss.md in the benchmark repository.
 
 Environment:
   RSPACK_LOADER_CACHE_BENCH_DIR        Runtime fixture and cache directory
@@ -43,6 +51,13 @@ function localDate(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function localTimestamp(date) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${localDate(date)}-${hours}-${minutes}-${seconds}`;
 }
 
 function formatMs(value) {
@@ -70,25 +85,35 @@ function findScenario(result, name) {
 }
 
 async function gitValue(repo, ...args) {
-  const output = await $({
+  const output = await execFileAsync('git', args, {
     cwd: repo,
-    quiet: true,
-  })`git ${args}`;
+  });
   return output.stdout.trim();
 }
 
 async function runImplementation(implementation) {
   console.log(chalk.cyan(`Running ${implementation.title} benchmark...`));
-  const output = await $({
-    cwd: projectRoot,
-    env: {
-      ...process.env,
-      RSPACK_REPO: implementation.repo,
-      RSPACK_LOADER_CACHE_BENCH_LABEL: implementation.label,
-    },
-    quiet: true,
-  })`${process.execPath} ${benchmarkScript}`;
-  const result = JSON.parse(output.stdout);
+  const resultPath = path.join(
+    os.tmpdir(),
+    `rspack-loader-cache-result-${process.pid}-${implementation.label}.json`,
+  );
+  let output;
+  let result;
+  try {
+    output = await execFileAsync(process.execPath, [benchmarkScript], {
+      cwd: projectRoot,
+      env: {
+        ...process.env,
+        RSPACK_REPO: implementation.repo,
+        RSPACK_LOADER_CACHE_BENCH_LABEL: implementation.label,
+        RSPACK_LOADER_CACHE_BENCH_RESULT_FILE: resultPath,
+      },
+      maxBuffer: 1024 * 1024,
+    });
+    result = JSON.parse(await fs.readFile(resultPath, 'utf8'));
+  } finally {
+    await fs.rm(resultPath, { force: true });
+  }
 
   console.log(chalk.green(`Finished ${implementation.title}`));
   if (output.stderr.trim()) {
@@ -107,25 +132,20 @@ async function runImplementation(implementation) {
   };
 }
 
-function summaryRows(jsonRun, storageRun) {
+function summaryRows(runs) {
+  const comparisons = runs.slice(1);
   const rows = [];
   for (const scenarioDefinition of manifest.scenarios) {
-    const jsonScenario = findScenario(
-      jsonRun.result,
-      scenarioDefinition.name,
-    );
-    const storageScenario = findScenario(
-      storageRun.result,
-      scenarioDefinition.name,
+    const scenarios = runs.map((run) =>
+      findScenario(run.result, scenarioDefinition.name),
     );
     for (const [phase, title] of [
       ['write', 'Cold write'],
       ['read', 'Warm read'],
     ]) {
-      const jsonValue = jsonScenario[phase].median;
-      const storageValue = storageScenario[phase].median;
+      const values = scenarios.map((scenario) => scenario[phase].median);
       rows.push(
-        `| ${scenarioDefinition.name} | ${title} | ${formatMs(jsonValue)} | ${formatMs(storageValue)} | ${formatDelta(storageValue, jsonValue)} |`,
+        `| ${scenarioDefinition.name} | ${title} | ${values.map(formatMs).join(' | ')} | ${comparisons.map((_, index) => formatDelta(values[index + 1], values[0])).join(' | ')} |`,
       );
     }
   }
@@ -178,10 +198,38 @@ for (const implementation of implementations) {
 }
 
 const finishedAt = new Date();
-const [jsonRun, storageRun] = runs;
-const resultFilename = `result-${localDate(finishedAt)}.md`;
+const jsonRun = runs[0];
+const resultFilename = `result-${localTimestamp(finishedAt)}.md`;
 const resultPath = path.join(projectRoot, resultFilename);
 const cpu = os.cpus()[0]?.model ?? 'unknown';
+const commitRows = runs
+  .map(
+    (run) =>
+      `| ${run.title} commit | \`${run.commit}\` (${run.branch || 'detached'}) |`,
+  )
+  .join('\n');
+const implementationHeaders = runs.map((run) => run.title).join(' | ');
+const deltaHeaders = runs
+  .slice(1)
+  .map((run) => `${run.title} vs JSON`)
+  .join(' | ');
+const summaryAlignments = runs.map(() => '---:').join(' | ');
+const deltaAlignments = runs
+  .slice(1)
+  .map(() => '---:')
+  .join(' | ');
+const rawResults = runs
+  .map(
+    (run) => `<details>
+<summary>${run.title}</summary>
+
+\`\`\`json
+${JSON.stringify(run.result, null, 2)}
+\`\`\`
+
+</details>`,
+  )
+  .join('\n\n');
 const markdown = `# Loader cache storage benchmark — ${localDate(finishedAt)}
 
 Generated at ${finishedAt.toISOString()}.
@@ -197,17 +245,15 @@ Generated at ${finishedAt.toISOString()}.
 | Modules | ${manifest.moduleCount} |
 | Iterations | ${jsonRun.result.iterations} |
 | Duration | ${formatMs(finishedAt.getTime() - startedAt.getTime())} |
-| JSON commit | \`${jsonRun.commit}\` (${jsonRun.branch || 'detached'}) |
-| rspack_storage commit | \`${storageRun.commit}\` (${storageRun.branch || 'detached'}) |
+${commitRows}
 
 ## Median summary
 
-Positive values in the final column mean that \`rspack_storage\` took longer
-than the JSON implementation.
+Positive delta values mean that the implementation took longer than JSON.
 
-| Scenario | Phase | JSON | rspack_storage | Storage vs JSON |
-| --- | --- | ---: | ---: | ---: |
-${summaryRows(jsonRun, storageRun)}
+| Scenario | Phase | ${implementationHeaders} | ${deltaHeaders} |
+| --- | --- | ${summaryAlignments} | ${deltaAlignments} |
+${summaryRows(runs)}
 
 ## Loader cache speedup
 
@@ -231,23 +277,7 @@ ${cacheRows(runs)}
 
 ## Raw results
 
-<details>
-<summary>JSON</summary>
-
-\`\`\`json
-${JSON.stringify(jsonRun.result, null, 2)}
-\`\`\`
-
-</details>
-
-<details>
-<summary>rspack_storage</summary>
-
-\`\`\`json
-${JSON.stringify(storageRun.result, null, 2)}
-\`\`\`
-
-</details>
+${rawResults}
 `;
 
 await fs.writeFile(resultPath, markdown);

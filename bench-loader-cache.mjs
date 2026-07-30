@@ -198,18 +198,23 @@ for (const scenario of manifest.scenarios) {
 const backendOnly = scenarios.find(({ name }) => name === 'backend-only');
 const slowLoader = scenarios.find(({ name }) => name === 'slow-loader');
 
-console.log(
-  JSON.stringify(
-    {
-      branch: process.env.RSPACK_LOADER_CACHE_BENCH_LABEL ?? 'unknown',
-      moduleCount: manifest.moduleCount,
-      iterations,
-      scenarios,
-    },
-    null,
-    2,
-  ),
+const result = JSON.stringify(
+  {
+    branch: process.env.RSPACK_LOADER_CACHE_BENCH_LABEL ?? 'unknown',
+    moduleCount: manifest.moduleCount,
+    iterations,
+    scenarios,
+  },
+  null,
+  2,
 );
+if (process.env.RSPACK_LOADER_CACHE_BENCH_RESULT_FILE) {
+  await fs.writeFile(
+    process.env.RSPACK_LOADER_CACHE_BENCH_RESULT_FILE,
+    `${result}\n`,
+  );
+}
+await new Promise((resolve) => process.stdout.write(`${result}\n`, resolve));
 console.error(
   [
     `${process.env.RSPACK_LOADER_CACHE_BENCH_LABEL ?? 'unknown'}:`,

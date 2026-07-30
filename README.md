@@ -1,13 +1,14 @@
 # Loader cache storage benchmark
 
-This repository compares the loader cache implementation that writes one JSON
-file per entry with the implementation backed by `rspack_storage`.
+This repository compares loader cache implementations that write one JSON or
+rkyv file per entry with the implementation backed by `rspack_storage`.
 
-It contains two Rspack submodules pinned to the implementations being compared:
+It contains three Rspack submodules pinned to the implementations being compared:
 
 | Directory | Source branch | Implementation |
 | --- | --- | --- |
 | `rspack-json` | `codex/loader-cache-json` | One JSON file per cache entry |
+| `rspack-rkyv` | `codex/loader-cache-rkyv` | One rkyv file per cache entry |
 | `rspack-storage` | `codex/loader-cache-rspack-storage` | Dedicated `rspack_storage` instance |
 
 ## Execution flow
@@ -25,7 +26,7 @@ Remove compiler persistent cache
 Warm build
   measure loader-cache reuse
        ↓
-Compare JSON and rspack_storage results
+Compare JSON, rkyv, and rspack_storage results
 ```
 
 Two fixture scenarios are committed:
@@ -57,10 +58,14 @@ cd <benchmark-dir>
 pnpm install --frozen-lockfile
 ```
 
-Install dependencies and build both Rspack development CLIs:
+Install dependencies and build all three Rspack development CLIs:
 
 ```sh
 cd <benchmark-dir>/rspack-json
+pnpm install --frozen-lockfile
+pnpm run build:cli:dev
+
+cd <benchmark-dir>/rspack-rkyv
 pnpm install --frozen-lockfile
 pnpm run build:cli:dev
 
@@ -73,7 +78,7 @@ Storage/native-watcher tests are not required to run this benchmark.
 
 ## Run the comparison
 
-Run both implementations and write a dated Markdown report:
+Run all three implementations and write a dated Markdown report:
 
 ```sh
 cd <benchmark-dir>
@@ -81,10 +86,10 @@ cd <benchmark-dir>
 pnpm benchmark
 ```
 
-The command writes `result-YYYY-MM-DD.md` with:
+The command writes `result-YYYY-MM-DD-HH-mm-ss.md` with:
 
 - environment and pinned submodule commits;
-- median comparison and `rspack_storage` percentage delta;
+- median comparison and rkyv/`rspack_storage` percentage deltas from JSON;
 - min, median, mean, and max timings;
 - cold-to-warm speedup;
 - cache file count and size;
@@ -94,6 +99,7 @@ To run or compare implementations manually:
 
 ```sh
 pnpm bench:json
+pnpm bench:rkyv
 pnpm bench:storage
 pnpm compare
 ```
