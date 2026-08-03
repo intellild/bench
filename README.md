@@ -149,3 +149,39 @@ pnpm benchmark
 For stable comparisons, close other CPU- or disk-heavy processes, use the same
 Rspack build profile for both implementations, and run both measurements on the
 same filesystem.
+
+## Compare persistent make cache with loader cache only
+
+Run the standalone full-build comparison against `rspack-storage`:
+
+```sh
+pnpm benchmark:make-cache
+```
+
+For every iteration, the script runs a cold build and snapshots its complete
+cache. It then restores that same snapshot for two complete warm builds:
+
+1. keep the complete persistent cache, including the cached make artifacts;
+2. remove compilation persistent-cache entries, switch persistence to readonly,
+   and retain only `loader-cache`.
+
+The order of the two warm builds alternates between iterations. The generated
+`result-make-cache-YYYY-MM-DD-HH-mm-ss.md` report contains external whole-process
+time and every Rspack compilation pass reported by the internal pass logger,
+including `build module graph` (make), optimization, code generation, asset
+creation, processing, and emission. A residual row preserves startup,
+configuration, persistent-cache load/flush, stats generation, and shutdown time
+that is included in the complete build but outside those pass timers.
+
+Use another checkout or run a smaller smoke benchmark with:
+
+```sh
+RSPACK_REPO=<path-to-rspack-checkout> \
+RSPACK_LOADER_CACHE_MAKE_BENCH_ITERATIONS=2 \
+RSPACK_LOADER_CACHE_MAKE_BENCH_SCENARIO=slow-loader \
+pnpm benchmark:make-cache
+```
+
+The script is self-contained; it creates the temporary stats configuration and
+cache snapshots itself. The selected Rspack checkout must already have its
+development CLI built.
