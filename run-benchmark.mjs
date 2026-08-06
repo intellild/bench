@@ -197,6 +197,23 @@ function speedupRows(runs) {
     .join('\n');
 }
 
+function instrumentationRows(runs) {
+  return runs
+    .flatMap((run) =>
+      run.result.scenarios.flatMap((scenario) => {
+        if (!scenario.instrumentation) return [];
+        return [
+          ['Cold write', scenario.instrumentation.write],
+          ['Warm read', scenario.instrumentation.read],
+        ].map(
+          ([phase, metrics]) =>
+            `| ${scenario.name} | ${run.title} | ${phase} | ${metrics.jsYields} | ${metrics.hits} | ${metrics.misses} | ${(metrics.hashNanos / 1e6).toFixed(3)} ms | ${(metrics.deserializeNanos / 1e6).toFixed(3)} ms | ${metrics.readFiles} | ${formatBytes(metrics.readBytes)} |`,
+        );
+      }),
+    )
+    .join('\n');
+}
+
 const runs = [];
 for (const implementation of implementations) {
   runs.push(await runImplementation(implementation));
@@ -267,6 +284,15 @@ Speedup is cold-write median divided by warm-read median.
 | Scenario | Implementation | Speedup |
 | --- | --- | ---: |
 ${speedupRows(runs)}
+
+## Single-loader internal metrics
+
+These counters are emitted by implementations that support the benchmark
+instrumentation. Times and counts are medians across the benchmark iterations.
+
+| Scenario | Implementation | Phase | JS yields | Rust hits | Rust misses | Hash time | Deserialize time | Files read | Bytes read |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+${instrumentationRows(runs)}
 
 ## Detailed timings
 

@@ -104,6 +104,7 @@ async function cacheStats() {
 async function runBuild() {
   await fs.rm(path.join(benchRoot, 'dist'), { recursive: true, force: true });
   const start = performance.now();
+  let stderr = '';
 
   await new Promise((resolve, reject) => {
     const child = spawn(
@@ -114,12 +115,15 @@ async function runBuild() {
         env: {
           ...process.env,
           RSPACK_LOADER_CACHE_BENCH_BABEL_LOADER: babelLoaderPath,
+          RSPACK_LOADER_CACHE_BENCH_STATS: '1',
+          RSPACK_LOADER_CACHE_BENCH_EXPECTED_ENTRIES: String(
+            manifest.moduleCount,
+          ),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
     let stdout = '';
-    let stderr = '';
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
@@ -140,7 +144,33 @@ async function runBuild() {
     });
   });
 
-  return { elapsedMs: performance.now() - start };
+  const prefix = 'RSPACK_LOADER_CACHE_BENCH_STATS ';
+  const instrumentation = stderr
+    .split('\n')
+    .filter((line) => line.startsWith(prefix))
+    .map((line) => JSON.parse(line.slice(prefix.length)))
+    .reduce(
+      (total, value) => {
+        for (const key of Object.keys(total)) total[key] += value[key] ?? 0;
+        return total;
+      },
+      {
+        hits: 0,
+        misses: 0,
+        jsYields: 0,
+        hashNanos: 0,
+        deserializeNanos: 0,
+        readFiles: 0,
+        readBytes: 0,
+      },
+    );
+  return {
+    elapsedMs: performance.now() - start,
+    instrumentation:
+      instrumentation.hits || instrumentation.misses
+        ? instrumentation
+        : undefined,
+  };
 }
 
 function summarize(values) {
@@ -154,6 +184,15 @@ function summarize(values) {
   };
 }
 
+function summarizeInstrumentation(values) {
+  return Object.fromEntries(
+    Object.keys(values[0]).map((key) => [
+      key,
+      summarize(values.map((value) => value[key])).median,
+    ]),
+  );
+}
+
 function formatMs(value) {
   return `${value.toFixed(1)} ms`;
 }
@@ -161,6 +200,8 @@ function formatMs(value) {
 async function benchmarkScenario({ name, complexity }) {
   const writes = [];
   const reads = [];
+  const writeInstrumentation = [];
+  const readInstrumentation = [];
   let stats;
 
   await prepareFixture(name);
@@ -175,10 +216,16 @@ async function benchmarkScenario({ name, complexity }) {
       throw new Error(`${name} cold write did not create loader cache data`);
     }
     writes.push(write.elapsedMs);
+    if (write.instrumentation) {
+      writeInstrumentation.push(write.instrumentation);
+    }
 
     await clearCompilerCache();
     const read = await runBuild();
     reads.push(read.elapsedMs);
+    if (read.instrumentation) {
+      readInstrumentation.push(read.instrumentation);
+    }
   }
 
   return {
@@ -187,6 +234,13 @@ async function benchmarkScenario({ name, complexity }) {
     write: summarize(writes),
     read: summarize(reads),
     cache: stats,
+    instrumentation:
+      writeInstrumentation.length && readInstrumentation.length
+        ? {
+            write: summarizeInstrumentation(writeInstrumentation),
+            read: summarizeInstrumentation(readInstrumentation),
+          }
+        : undefined,
   };
 }
 

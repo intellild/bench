@@ -98,6 +98,7 @@ The command writes `result-YYYY-MM-DD-HH-mm-ss.md` with:
 - min, median, mean, and max timings;
 - cold-to-warm speedup;
 - cache file count and size;
+- Rust single-loader hit/miss, JS yield, hash/deserialize, and cache-read metrics;
 - raw JSON results.
 
 To run or compare implementations manually:
