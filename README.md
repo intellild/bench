@@ -9,7 +9,7 @@ It contains four Rspack submodules pinned to the implementations being compared:
 | --- | --- | --- |
 | `rspack-json` | `codex/loader-cache-json` | One JSON file per cache entry |
 | `rspack-rkyv` | `codex/loader-cache-rkyv` | One rkyv file per cache entry |
-| `rspack-single-loader` | `codex/loader-cache-single-loader` | Cache each loader result by input source and options |
+| `rspack-single-loader` | `codex/loader-cache-single-loader` | Rust-side cache for each loader result, keyed by input source and options |
 | `rspack-storage` | `codex/loader-cache-rspack-storage` | Dedicated `rspack_storage` instance |
 
 ## Execution flow
