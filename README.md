@@ -1,14 +1,15 @@
 # Loader cache storage benchmark
 
-This repository compares loader cache implementations that write one JSON or
-rkyv file per entry with the implementation backed by `rspack_storage`.
+This repository compares whole-chain JSON/rkyv loader caches, a single-loader
+result cache, and the implementation backed by `rspack_storage`.
 
-It contains three Rspack submodules pinned to the implementations being compared:
+It contains four Rspack submodules pinned to the implementations being compared:
 
 | Directory | Source branch | Implementation |
 | --- | --- | --- |
 | `rspack-json` | `codex/loader-cache-json` | One JSON file per cache entry |
 | `rspack-rkyv` | `codex/loader-cache-rkyv` | One rkyv file per cache entry |
+| `rspack-single-loader` | `codex/loader-cache-single-loader` | Cache each loader result by input source and options |
 | `rspack-storage` | `codex/loader-cache-rspack-storage` | Dedicated `rspack_storage` instance |
 
 ## Execution flow
@@ -26,7 +27,7 @@ Remove compiler persistent cache
 Warm build
   measure loader-cache reuse
        ↓
-Compare JSON, rkyv, and rspack_storage results
+Compare JSON, rkyv, single-loader, and rspack_storage results
 ```
 
 Two fixture scenarios are committed:
@@ -58,7 +59,7 @@ cd <benchmark-dir>
 pnpm install --frozen-lockfile
 ```
 
-Install dependencies and build all three Rspack development CLIs:
+Install dependencies and build all four Rspack development CLIs:
 
 ```sh
 cd <benchmark-dir>/rspack-json
@@ -66,6 +67,10 @@ pnpm install --frozen-lockfile
 pnpm run build:cli:dev
 
 cd <benchmark-dir>/rspack-rkyv
+pnpm install --frozen-lockfile
+pnpm run build:cli:dev
+
+cd <benchmark-dir>/rspack-single-loader
 pnpm install --frozen-lockfile
 pnpm run build:cli:dev
 
@@ -78,7 +83,7 @@ Storage/native-watcher tests are not required to run this benchmark.
 
 ## Run the comparison
 
-Run all three implementations and write a dated Markdown report:
+Run all four implementations and write a dated Markdown report:
 
 ```sh
 cd <benchmark-dir>
@@ -89,7 +94,7 @@ pnpm benchmark
 The command writes `result-YYYY-MM-DD-HH-mm-ss.md` with:
 
 - environment and pinned submodule commits;
-- median comparison and rkyv/`rspack_storage` percentage deltas from JSON;
+- median comparison and rkyv/single-loader/`rspack_storage` percentage deltas from JSON;
 - min, median, mean, and max timings;
 - cold-to-warm speedup;
 - cache file count and size;
@@ -100,6 +105,7 @@ To run or compare implementations manually:
 ```sh
 pnpm bench:json
 pnpm bench:rkyv
+pnpm bench:single-loader
 pnpm bench:storage
 pnpm compare
 ```

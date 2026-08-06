@@ -28,6 +28,11 @@ const implementations = [
     repo: path.join(projectRoot, 'rspack-rkyv'),
   },
   {
+    label: 'single-loader',
+    title: 'single_loader',
+    repo: path.join(projectRoot, 'rspack-single-loader'),
+  },
+  {
     label: 'rspack-storage',
     title: 'rspack_storage',
     repo: path.join(projectRoot, 'rspack-storage'),
@@ -37,7 +42,7 @@ const implementations = [
 if (process.argv.includes('--help')) {
   console.log(`Usage: pnpm benchmark
 
-Runs the JSON, rkyv, and rspack_storage benchmarks sequentially and writes
+Runs the JSON, rkyv, single_loader, and rspack_storage benchmarks sequentially and writes
 result-YYYY-MM-DD-HH-mm-ss.md in the benchmark repository.
 
 Environment:

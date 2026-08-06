@@ -9,8 +9,9 @@
     "benchmark:make-cache": "zx bench-persist-make-vs-loader-cache.mjs",
     "bench:json": "RSPACK_REPO=./rspack-json RSPACK_LOADER_CACHE_BENCH_LABEL=json node bench-loader-cache.mjs > json-result.json",
     "bench:rkyv": "RSPACK_REPO=./rspack-rkyv RSPACK_LOADER_CACHE_BENCH_LABEL=rkyv node bench-loader-cache.mjs > rkyv-result.json",
+    "bench:single-loader": "RSPACK_REPO=./rspack-single-loader RSPACK_LOADER_CACHE_BENCH_LABEL=single-loader node bench-loader-cache.mjs > single-loader-result.json",
     "bench:storage": "RSPACK_REPO=./rspack-storage RSPACK_LOADER_CACHE_BENCH_LABEL=rspack-storage node bench-loader-cache.mjs > storage-result.json",
-    "compare": "node compare-loader-cache-results.mjs json-result.json rkyv-result.json storage-result.json"
+    "compare": "node compare-loader-cache-results.mjs json-result.json rkyv-result.json single-loader-result.json storage-result.json"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
